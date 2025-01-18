@@ -2,7 +2,7 @@
 
 ## 📕 Todo
 
-- [ ] 1. Booting
+- [x] 1. Booting
 - [ ] 2. Hello World
 - [ ] 3. C stdlib
 - [ ] 4. Kernel panic
