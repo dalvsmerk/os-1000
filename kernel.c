@@ -1,3 +1,5 @@
+#include "stdio.h"
+
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
 typedef uint32_t size_t;
@@ -18,17 +20,25 @@ void kernel_main(void)
 {
   memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
 
-  for (;;);
+  const char *s = "\n\nHello World!\n";
+  for (int i = 0; s[i] != '\0'; i++)
+  {
+    putchar(s[i]);
+  }
+
+  for (;;)
+  {
+    __asm__ __volatile__("wfi");
+  }
 }
 
 __attribute__((section(".text.boot")))
-__attribute__((naked))
-void boot(void)
+__attribute__((naked)) void
+boot(void)
 {
   __asm__ __volatile__(
-    "mv sp, %[stack_top]\n"
-    "j kernel_main\n"
-    :
-    : [stack_top] "r" (__stack_top)
-  );
+      "mv sp, %[stack_top]\n"
+      "j kernel_main\n"
+      :
+      : [stack_top] "r"(__stack_top));
 }
