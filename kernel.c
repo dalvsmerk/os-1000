@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "alloc.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "string.h"
@@ -91,10 +92,13 @@ void kernel_main(void) {
   memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
 
   WRITE_CSR(stvec, (uint32_t)handle_trap);
-  __asm__ __volatile__("unimp");
+  printf("registered trap handler\n");
 
-  const char *s = "Hello World!";
-  printf("\n\nMessage %d from %x kernel: %s\n", 42, 123456, s);
+  char *ptr1 = (char *)balloc_pages(2);
+  char *ptr2 = (char *)balloc_pages(1);
+
+  printf("ptr1=%x\n", (uint32_t)ptr1);
+  printf("ptr2=%x\n", (uint32_t)ptr2);
 
   for (;;) {
     __asm__ __volatile__("wfi");

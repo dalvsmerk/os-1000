@@ -8,11 +8,10 @@ CFLAGS := -std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdl
 BREW_PREFIX := $(shell brew --prefix)
 LLVM_PREFIX := $(BREW_PREFIX)/opt/llvm/bin
 
+SOURCE := kernel.c stdio.c string.c alloc.c
+
 build:
-	$(CC) $(CFLAGS) -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
-		kernel.c \
-		stdio.c \
-		string.c
+	$(CC) $(CFLAGS) -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf $(SOURCE)
 
 run:
 	$(QEMU) -machine virt -bios default -nographic -serial mon:stdio -no-reboot \
