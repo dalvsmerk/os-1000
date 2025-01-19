@@ -5,14 +5,14 @@
 
 #define PAGE_SIZE 4096 // 4kb
 
-extern char __free_ram[], __free_ram_end[];
+extern uint32_t __free_ram[], __free_ram_end[];
 
 /**
  * Balloc allocator, allocates n pages of PAGE_SIZE
  */
 void *balloc_pages(size_t n) {
-  static uint32_t *next_free_addr = __free_ram;
-  char *ptr = next_free_addr;
+  static uint32_t *next_free_addr = (uint32_t *)__free_ram;
+  uint32_t *ptr = next_free_addr;
   next_free_addr += n * PAGE_SIZE;
 
   if ((uint32_t)next_free_addr > (uint32_t)__free_ram_end) {

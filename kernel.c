@@ -91,7 +91,7 @@ __attribute__((naked)) __attribute__((aligned(4))) void trap_entry(void) {
 void kernel_main(void) {
   memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
 
-  WRITE_CSR(stvec, (uint32_t)handle_trap);
+  WRITE_CSR(stvec, (uint32_t)trap_entry);
   printf("registered trap handler\n");
 
   char *ptr1 = (char *)balloc_pages(2);
