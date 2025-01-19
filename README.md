@@ -4,10 +4,10 @@
 
 - [x] 1. Booting
 - [x] 2. Hello World
-- [ ] 3. C stdlib
-- [ ] 4. Kernel panic
-- [ ] 5. Exception
-- [ ] 6. Memory allocation
+- [x] 3. C stdlib
+- [x] 4. Kernel panic
+- [x] 5. Exception
+- [x] 6. Memory allocation
 - [ ] 7. Process management
 - [ ] 8. Page table
 - [ ] 9. Application
