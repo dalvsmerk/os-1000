@@ -58,6 +58,10 @@ void printf(char *fmt, ...) {
       }
       case 'x': {
         int x = va_arg(vargs, int);
+        // More readable form of hex, not to confuse with dec accidentally
+        // when reading output
+        putchar('0');
+        putchar('x');
         for (int i = 7; i >= 0; i--) {
           int nibble = (x >> (i * 4)) & 0xf;
           putchar("0123456789abcdef"[nibble]);
