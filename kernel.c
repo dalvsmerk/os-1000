@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "alloc.h"
+#include "builtins.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -12,13 +13,6 @@
 #define PROC_RUNNABLE 1
 
 #define PROC_STACK_SIZE 8192 // 8kb
-
-struct process {
-  int pid;
-  int state;
-  vaddr_t sp;
-  uint32_t stack[PROC_STACK_SIZE];
-};
 
 extern char __bss[], __bss_end[], __stack_top[];
 
@@ -157,6 +151,42 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
                        "ret\n");
 }
 
+void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
+  if (!is_aligned(vaddr, PAGE_SIZE)) {
+    PANIC("vaddr %x is not aligned to 4kb page size", vaddr);
+  }
+
+  if (!is_aligned(paddr, PAGE_SIZE)) {
+    PANIC("paddr %x is not aligned to 4kb page size", paddr);
+  }
+
+  uint32_t vpn1 = (vaddr >> 22) & 0x3FF;
+
+  if ((table1[vpn1] & PAGE_V) == 0) {
+    uint32_t pt_paddr = (uint32_t)balloc_pages(1);
+    // Shift right by lower 12 bits (by PAGE_SIZE) and align paddr
+    // to page table entry format
+    // 31..20 | 19..10 | 9.7 | 6...0
+    // PPN[1] | PPN[0] | RWS | FLAGS
+    table1[vpn1] = (pt_paddr / PAGE_SIZE) << 10 | PAGE_V;
+  }
+
+  uint32_t vpn0 = (vaddr >> 12) & 0x3FF;
+  // Basically, restore pt_paddr allocated above
+  uint32_t *table0 = (uint32_t *)((table1[vpn1] >> 10) * PAGE_SIZE);
+  table0[vpn0] = ((paddr / PAGE_SIZE) << 10) | flags | PAGE_V;
+}
+
+extern char __kernel_base[], __free_ram_end[];
+
+struct process {
+  int pid;
+  int state;
+  vaddr_t sp;
+  uint32_t *page_table;
+  uint32_t stack[PROC_STACK_SIZE];
+};
+
 struct process proc_pool[PROC_POOL_SIZE];
 
 struct process *create_process(uint32_t pc) {
@@ -189,9 +219,18 @@ struct process *create_process(uint32_t pc) {
   *--sp = 0;  // s1
   *--sp = pc; // ra
 
+  uint32_t *page_table = (uint32_t *)balloc_pages(1);
+  for (paddr_t paddr = (paddr_t)__kernel_base; paddr < (uint32_t)__free_ram_end;
+       paddr += PAGE_SIZE) {
+    // vaddr = paddr for kernel memory map
+    // each kernel process will have memory map to all memory: .text, .data, etc
+    map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+  }
+
   proc->pid = i + 1;
   proc->state = PROC_RUNNABLE;
-  proc->sp = (vaddr_t)sp;
+  proc->page_table = page_table;
+  proc->sp = (uint32_t)sp;
   return proc;
 }
 
@@ -227,9 +266,15 @@ void yield_roundrobin(void) {
   }
 
   __asm__ __volatile__(
+      "sfence.vma\n"
+      "csrw satp, %[satp]\n"
+      "sfence.vma\n"
       "csrw sscratch, %[sscratch]\n"
       :
-      : [sscratch] "r"((uint32_t)&next->stack[sizeof(next->stack)]));
+      // Enable SV32 virtual address translation mode
+      // and setup pointer to process root page table
+      : [satp] "r"(SATP_SV32 | ((uint32_t)next->page_table / PAGE_SIZE)),
+        [sscratch] "r"((uint32_t)&next->stack[sizeof(next->stack)]));
 
   struct process *prev = current_proc;
   current_proc = next;
@@ -241,21 +286,25 @@ struct process *proc_b;
 
 void proc_a_entry(void) {
   printf("starting process A\n");
-  int i = 0;
-  while (i < 100) {
-    printf("A%d\n", i);
+  // int i = 0;
+  // while (i < 100) {
+  while (1) {
+    // printf("A%d\n", i);
+    putchar('A');
     yield_roundrobin();
-    i++;
+    // i++;
   }
 }
 
 void proc_b_entry(void) {
   printf("starting process B\n");
-  int i = 0;
-  while (i < 100) {
-    printf("B%d\n", i);
+  // int i = 0;
+  // while (i < 100) {
+  while (1) {
+    // printf("B%d\n", i);
+    putchar('B');
     yield_roundrobin();
-    i++;
+    // i++;
   }
 }
 

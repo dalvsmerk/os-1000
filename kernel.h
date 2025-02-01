@@ -1,14 +1,16 @@
 #pragma once
 
-#include "stdio.h"
 #include "stdint.h"
+#include "stdio.h"
 
 // do {} while (0) allows multi-line macros to be expanded correctly
 // https://www.jpcert.or.jp/sc-rules/c-pre10-c.html
-#define PANIC(fmt, ...)                                                            \
-  do {                                                                             \
-    printf("kernel panic at %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
-    while (1) {};                                                                  \
+#define PANIC(fmt, ...)                                                        \
+  do {                                                                         \
+    printf("kernel panic at %s:%d: " fmt "\n", __FILE__, __LINE__,             \
+           ##__VA_ARGS__);                                                     \
+    while (1) {                                                                \
+    };                                                                         \
   } while (0)
 
 struct trap_frame {
@@ -45,15 +47,22 @@ struct trap_frame {
   uint32_t sp;
 } __attribute__((packed));
 
-#define READ_CSR(reg) \
-  ({ \
-    unsigned long __tmp; \
-    __asm__ __volatile__("csrr %0, " #reg : "=r"(__tmp)); \
-    __tmp; \
+#define READ_CSR(reg)                                                          \
+  ({                                                                           \
+    unsigned long __tmp;                                                       \
+    __asm__ __volatile__("csrr %0, " #reg : "=r"(__tmp));                      \
+    __tmp;                                                                     \
   })
 
-#define WRITE_CSR(reg, value) \
-  do { \
-    uint32_t __tmp = (value); \
-    __asm__ __volatile__("csrw " #reg ", %0" : /* no output */ : "r"(__tmp)); \
-  } while(0)
+#define WRITE_CSR(reg, value)                                                  \
+  do {                                                                         \
+    uint32_t __tmp = (value);                                                  \
+    __asm__ __volatile__("csrw " #reg ", %0" : /* no output */ : "r"(__tmp));  \
+  } while (0)
+
+#define SATP_SV32 (1u << 31)
+#define PAGE_V (1 << 0)
+#define PAGE_R (1 << 1)
+#define PAGE_W (1 << 2)
+#define PAGE_X (1 << 3)
+#define PAGE_U (1 << 4)

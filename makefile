@@ -22,3 +22,6 @@ disas: kernel.elf
 
 addr2line: kernel.elf
 	$(LLVM_PREFIX)/llvm-addr2line -e kernel.elf $(addr)
+
+minspect: kernel.elf
+	$(LLVM_PREFIX)/llvm-nm kernel.elf

@@ -1,9 +1,8 @@
+#include "alloc.h"
 #include "kernel.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "string.h"
-
-#define PAGE_SIZE 4096 // 4kb
 
 extern uint32_t __free_ram[], __free_ram_end[];
 

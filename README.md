@@ -8,8 +8,8 @@
 - [x] 4. Kernel panic
 - [x] 5. Exception
 - [x] 6. Memory allocation
-- [ ] 7. Process management
-- [ ] 8. Page table
+- [x] 7. Process management
+- [x] 8. Page table
 - [ ] 9. Application
 - [ ] 10. User mode
 - [ ] 11. System calls
