@@ -108,33 +108,35 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
                                            uint32_t *next_sp) {
   __asm__ __volatile__("addi sp, sp, -13 * 4\n"
                        "sw ra, 4 * 0(sp)\n"
-                       "sw s1, 4 * 1(sp)\n"
-                       "sw s2, 4 * 2(sp)\n"
-                       "sw s3, 4 * 3(sp)\n"
-                       "sw s4, 4 * 4(sp)\n"
-                       "sw s5, 4 * 5(sp)\n"
-                       "sw s6, 4 * 6(sp)\n"
-                       "sw s7, 4 * 7(sp)\n"
-                       "sw s8, 4 * 8(sp)\n"
-                       "sw s9, 4 * 9(sp)\n"
-                       "sw s10, 4 * 10(sp)\n"
-                       "sw s11, 4 * 11(sp)\n"
+                       "sw s0, 4 * 1(sp)\n"
+                       "sw s1, 4 * 2(sp)\n"
+                       "sw s2, 4 * 3(sp)\n"
+                       "sw s3, 4 * 4(sp)\n"
+                       "sw s4, 4 * 5(sp)\n"
+                       "sw s5, 4 * 6(sp)\n"
+                       "sw s6, 4 * 7(sp)\n"
+                       "sw s7, 4 * 8(sp)\n"
+                       "sw s8, 4 * 9(sp)\n"
+                       "sw s9, 4 * 10(sp)\n"
+                       "sw s10, 4 * 11(sp)\n"
+                       "sw s11, 4 * 12(sp)\n"
 
                        "sw sp, (a0)\n"
                        "lw sp, (a1)\n"
 
                        "lw ra, 4 * 0(sp)\n"
-                       "lw s1, 4 * 1(sp)\n"
-                       "lw s2, 4 * 2(sp)\n"
-                       "lw s3, 4 * 3(sp)\n"
-                       "lw s4, 4 * 4(sp)\n"
-                       "lw s5, 4 * 5(sp)\n"
-                       "lw s6, 4 * 6(sp)\n"
-                       "lw s7, 4 * 7(sp)\n"
-                       "lw s8, 4 * 8(sp)\n"
-                       "lw s9, 4 * 9(sp)\n"
-                       "lw s10, 4 * 10(sp)\n"
-                       "lw s11, 4 * 11(sp)\n"
+                       "lw s0, 4 * 1(sp)\n"
+                       "lw s1, 4 * 2(sp)\n"
+                       "lw s2, 4 * 3(sp)\n"
+                       "lw s3, 4 * 4(sp)\n"
+                       "lw s4, 4 * 5(sp)\n"
+                       "lw s5, 4 * 6(sp)\n"
+                       "lw s6, 4 * 7(sp)\n"
+                       "lw s7, 4 * 8(sp)\n"
+                       "lw s8, 4 * 9(sp)\n"
+                       "lw s9, 4 * 10(sp)\n"
+                       "lw s10, 4 * 11(sp)\n"
+                       "lw s11, 4 * 12(sp)\n"
 
                        "addi sp, sp, 13 * 4\n"
                        "ret\n");
@@ -149,6 +151,7 @@ struct process *create_process(uint32_t pc) {
   for (i = 0; i < PROC_POOL_SIZE; i++) {
     if (proc_pool[i].state == PROC_UNUSED) {
       proc = &proc_pool[i];
+      break;
     }
   }
 
@@ -183,27 +186,55 @@ void delay(void) {
   }
 }
 
+struct process *current_proc;
+struct process *idle_proc;
+
+void yield_roundrobin(void) {
+  struct process *next = idle_proc;
+
+  for (int i = 0; i < PROC_POOL_SIZE; i++) {
+    struct process *proc = &proc_pool[(current_proc->pid + i) % PROC_POOL_SIZE];
+    int runnable = proc->state == PROC_RUNNABLE;
+    int non_idle = proc->pid > 0;
+
+    // in theory, check for runnable should be enough;
+    // our implementation doesn't free up slots in process pool;
+    // check for non idle just in case memory is in invalid state
+    if (runnable && non_idle) {
+      next = proc;
+      break;
+    }
+  }
+
+  if (next == current_proc) {
+    // No need to switch context if there is only one runnable process
+    return;
+  }
+
+  struct process *prev = current_proc;
+  current_proc = next;
+  switch_context(&prev->sp, &next->sp);
+}
+
 struct process *proc_a;
 struct process *proc_b;
 
 void proc_a_entry(void) {
-  printf("starting process a\n");
+  printf("starting process A\n");
   int i = 0;
   while (i < 100) {
-    putchar('A');
-    switch_context(&proc_a->sp, &proc_b->sp);
-    delay();
+    printf("A%d\n", i);
+    yield_roundrobin();
     i++;
   }
 }
 
 void proc_b_entry(void) {
-  printf("starting process b\n");
+  printf("starting process B\n");
   int i = 0;
   while (i < 100) {
-    putchar('B');
-    switch_context(&proc_b->sp, &proc_a->sp);
-    delay();
+    printf("B%d\n", i);
+    yield_roundrobin();
     i++;
   }
 }
@@ -214,9 +245,14 @@ void kernel_main(void) {
   WRITE_CSR(stvec, (uint32_t)trap_entry);
   printf("registered trap handler\n");
 
+  idle_proc = create_process((uint32_t)NULL);
+  idle_proc->pid = -1;
+  current_proc = idle_proc;
+
   proc_a = create_process((uint32_t)proc_a_entry);
   proc_b = create_process((uint32_t)proc_b_entry);
-  proc_a_entry();
+  yield_roundrobin();
+  PANIC("switched to idle process");
 
   for (;;) {
     __asm__ __volatile__("wfi");
