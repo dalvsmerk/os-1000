@@ -8,7 +8,7 @@
 extern uint32_t __free_ram[], __free_ram_end[];
 
 /**
- * Balloc allocator, allocates n pages of PAGE_SIZE
+ * Bump allocator, allocates n pages of PAGE_SIZE
  */
 void *balloc_pages(size_t n) {
   static uint32_t *next_free_addr = (uint32_t *)__free_ram;
