@@ -16,6 +16,10 @@
 
 extern char __bss[], __bss_end[], __stack_top[];
 
+extern char __kernel_base[], __free_ram_end[];
+
+extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
+
 void handle_trap(struct trap_frame *frame) {
   uint32_t scause = READ_CSR(scause);
   uint32_t stval = READ_CSR(stval);
@@ -148,7 +152,7 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
                        "lw s11, 4 * 12(sp)\n"
 
                        "addi sp, sp, 13 * 4\n"
-                       "ret\n");
+                       "ret\n"); // alias for `jr ra`
 }
 
 void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
@@ -177,7 +181,13 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
   table0[vpn0] = ((paddr / PAGE_SIZE) << 10) | flags | PAGE_V;
 }
 
-extern char __kernel_base[], __free_ram_end[];
+void user_entry(void) {
+  __asm__ __volatile__("csrw sepc, %[sepc]\n"
+                       "csrw sstatus, %[sstatus]\n"
+                       "sret\n"
+                       :
+                       : [sepc] "r"(USER_BASE), [sstatus] "r"(SSTATUS_SPIE));
+}
 
 struct process {
   int pid;
@@ -189,7 +199,7 @@ struct process {
 
 struct process proc_pool[PROC_POOL_SIZE];
 
-struct process *create_process(uint32_t pc) {
+struct process *create_process(uint32_t *img, size_t img_size) {
   struct process *proc = NULL;
 
   int i;
@@ -206,25 +216,40 @@ struct process *create_process(uint32_t pc) {
 
   uint32_t *sp = (uint32_t *)&proc->stack[sizeof(proc->stack)];
 
-  *--sp = 0;  // s11
-  *--sp = 0;  // s10
-  *--sp = 0;  // s9
-  *--sp = 0;  // s8
-  *--sp = 0;  // s7
-  *--sp = 0;  // s6
-  *--sp = 0;  // s5
-  *--sp = 0;  // s4
-  *--sp = 0;  // s3
-  *--sp = 0;  // s2
-  *--sp = 0;  // s1
-  *--sp = pc; // ra
+  *--sp = 0;                    // s11
+  *--sp = 0;                    // s10
+  *--sp = 0;                    // s9
+  *--sp = 0;                    // s8
+  *--sp = 0;                    // s7
+  *--sp = 0;                    // s6
+  *--sp = 0;                    // s5
+  *--sp = 0;                    // s4
+  *--sp = 0;                    // s3
+  *--sp = 0;                    // s2
+  *--sp = 0;                    // s1
+  *--sp = (uint32_t)user_entry; // ra
 
+  // map kernel pages
+  // todo: why always map until end of ram?
   uint32_t *page_table = (uint32_t *)balloc_pages(1);
   for (paddr_t paddr = (paddr_t)__kernel_base; paddr < (uint32_t)__free_ram_end;
        paddr += PAGE_SIZE) {
     // vaddr = paddr for kernel memory map
     // each kernel process will have memory map to all memory: .text, .data, etc
-    map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+    uint32_t flags = PAGE_R | PAGE_W | PAGE_X;
+    map_page(page_table, paddr, paddr, flags);
+  }
+
+  // map user pages
+  for (uint32_t off = 0; off < img_size; off += PAGE_SIZE) {
+    paddr_t page = (paddr_t)balloc_pages(1);
+
+    uint32_t remaining = img_size - off;
+    uint32_t size = PAGE_SIZE <= remaining ? PAGE_SIZE : remaining;
+    memcpy((void *)page, img + off, size);
+
+    uint32_t flags = PAGE_U | PAGE_R | PAGE_W | PAGE_X;
+    map_page(page_table, USER_BASE + off, page, flags);
   }
 
   proc->pid = i + 1;
@@ -281,45 +306,19 @@ void yield_roundrobin(void) {
   switch_context(&prev->sp, &next->sp);
 }
 
-struct process *proc_a;
-struct process *proc_b;
-
-void proc_a_entry(void) {
-  printf("starting process A\n");
-  // int i = 0;
-  // while (i < 100) {
-  while (1) {
-    // printf("A%d\n", i);
-    putchar('A');
-    yield_roundrobin();
-    // i++;
-  }
-}
-
-void proc_b_entry(void) {
-  printf("starting process B\n");
-  // int i = 0;
-  // while (i < 100) {
-  while (1) {
-    // printf("B%d\n", i);
-    putchar('B');
-    yield_roundrobin();
-    // i++;
-  }
-}
-
 void kernel_main(void) {
   memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
 
   WRITE_CSR(stvec, (uint32_t)trap_entry);
   printf("registered trap handler\n");
 
-  idle_proc = create_process((uint32_t)NULL);
+  idle_proc = create_process((uint32_t *)NULL, 0);
   idle_proc->pid = -1;
   current_proc = idle_proc;
 
-  proc_a = create_process((uint32_t)proc_a_entry);
-  proc_b = create_process((uint32_t)proc_b_entry);
+  create_process((uint32_t *)_binary_shell_bin_start,
+                 (size_t)_binary_shell_bin_size);
+
   yield_roundrobin();
   PANIC("switched to idle process");
 

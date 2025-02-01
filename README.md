@@ -10,8 +10,8 @@
 - [x] 6. Memory allocation
 - [x] 7. Process management
 - [x] 8. Page table
-- [ ] 9. Application
-- [ ] 10. User mode
+- [x] 9. Application
+- [x] 10. User mode
 - [ ] 11. System calls
 - [ ] 12. Disk I/O
 - [ ] 13. File system
