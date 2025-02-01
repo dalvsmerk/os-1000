@@ -2,9 +2,10 @@
 #include "alloc.h"
 #include "stdint.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "string.h"
 
-#define PROC_MAX 8
+#define PROC_POOL_SIZE 8
 
 // process states
 #define PROC_UNUSED 0
@@ -139,17 +140,83 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
                        "ret\n");
 }
 
+struct process proc_pool[PROC_POOL_SIZE];
+
+struct process *create_process(uint32_t pc) {
+  struct process *proc = NULL;
+
+  int i;
+  for (i = 0; i < PROC_POOL_SIZE; i++) {
+    if (proc_pool[i].state == PROC_UNUSED) {
+      proc = &proc_pool[i];
+    }
+  }
+
+  if (proc == NULL) {
+    PANIC("no available slots for new process");
+  }
+
+  uint32_t *sp = (uint32_t *)&proc->stack[sizeof(proc->stack)];
+
+  *--sp = 0;  // s11
+  *--sp = 0;  // s10
+  *--sp = 0;  // s9
+  *--sp = 0;  // s8
+  *--sp = 0;  // s7
+  *--sp = 0;  // s6
+  *--sp = 0;  // s5
+  *--sp = 0;  // s4
+  *--sp = 0;  // s3
+  *--sp = 0;  // s2
+  *--sp = 0;  // s1
+  *--sp = pc; // ra
+
+  proc->pid = i + 1;
+  proc->state = PROC_RUNNABLE;
+  proc->sp = (vaddr_t)sp;
+  return proc;
+}
+
+void delay(void) {
+  for (int i = 0; i < 30000000; i++) {
+    __asm__ __volatile__("nop");
+  }
+}
+
+struct process *proc_a;
+struct process *proc_b;
+
+void proc_a_entry(void) {
+  printf("starting process a\n");
+  int i = 0;
+  while (i < 100) {
+    putchar('A');
+    switch_context(&proc_a->sp, &proc_b->sp);
+    delay();
+    i++;
+  }
+}
+
+void proc_b_entry(void) {
+  printf("starting process b\n");
+  int i = 0;
+  while (i < 100) {
+    putchar('B');
+    switch_context(&proc_b->sp, &proc_a->sp);
+    delay();
+    i++;
+  }
+}
+
 void kernel_main(void) {
   memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
 
   WRITE_CSR(stvec, (uint32_t)trap_entry);
   printf("registered trap handler\n");
 
-  char *ptr1 = (char *)balloc_pages(2);
-  char *ptr2 = (char *)balloc_pages(1);
-
-  printf("ptr1=%x\n", (uint32_t)ptr1);
-  printf("ptr2=%x\n", (uint32_t)ptr2);
+  proc_a = create_process((uint32_t)proc_a_entry);
+  proc_b = create_process((uint32_t)proc_b_entry);
+  proc_a_entry();
 
   for (;;) {
     __asm__ __volatile__("wfi");
