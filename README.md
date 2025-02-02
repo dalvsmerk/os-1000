@@ -12,7 +12,7 @@
 - [x] 8. Page table
 - [x] 9. Application
 - [x] 10. User mode
-- [ ] 11. System calls
+- [x] 11. System calls
 - [ ] 12. Disk I/O
 - [ ] 13. File system
 

@@ -3,7 +3,9 @@
 
 __attribute__((noreturn)) void exit(void);
 
-void syscall(int sysno, int arg0, int arg1, int arg2);
+int syscall(int sysno, int arg0, int arg1, int arg2);
 
 // syscall numbers
 #define SYS_PUTCHAR 1
+#define SYS_GETCHAR 2
+#define SYS_EXIT 3

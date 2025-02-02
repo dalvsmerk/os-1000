@@ -13,6 +13,7 @@
 // process states
 #define PROC_UNUSED 0
 #define PROC_RUNNABLE 1
+#define PROC_EXITED 2
 
 #define PROC_STACK_SIZE 8192 // 8kb
 
@@ -21,6 +22,20 @@ extern char __bss[], __bss_end[], __stack_top[];
 extern char __kernel_base[], __free_ram_end[];
 
 extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
+
+struct process {
+  int pid;
+  int state;
+  vaddr_t sp;
+  uint32_t *page_table;
+  uint32_t stack[PROC_STACK_SIZE];
+};
+
+struct process proc_pool[PROC_POOL_SIZE];
+struct process *current_proc;
+struct process *idle_proc;
+
+void yield_roundrobin(void);
 
 void putchar(char ch) {
   sbi_call(ch, 0, 0, 0, 0, 0, 0, 1);
@@ -33,12 +48,33 @@ void putchar(char ch) {
   // negative error code. So skipping error handling for now
 }
 
+int getchar(void) {
+  struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2);
+  return ret.error;
+}
+
 void handle_syscall(struct trap_frame *frame) {
   // syscall code
   switch (frame->a3) {
   case SYS_PUTCHAR:
     putchar(frame->a0);
     break;
+  case SYS_GETCHAR:
+    while (1) {
+      int ch = getchar();
+      if (ch >= 0) {
+        frame->a0 = ch;
+        break;
+      }
+
+      yield_roundrobin();
+    }
+    break;
+  case SYS_EXIT:
+    printf("process pid=%d exited\n", current_proc->pid);
+    current_proc->state = PROC_EXITED;
+    yield_roundrobin();
+    PANIC("unreachable");
   default:
     PANIC("unexpected syscall no=%d", frame->a3);
   }
@@ -223,16 +259,6 @@ void user_entry(void) {
                        : [sepc] "r"(USER_BASE), [sstatus] "r"(SSTATUS_SPIE));
 }
 
-struct process {
-  int pid;
-  int state;
-  vaddr_t sp;
-  uint32_t *page_table;
-  uint32_t stack[PROC_STACK_SIZE];
-};
-
-struct process proc_pool[PROC_POOL_SIZE];
-
 struct process *create_process(uint32_t *img, size_t img_size) {
   struct process *proc = NULL;
 
@@ -298,9 +324,6 @@ void delay(void) {
     __asm__ __volatile__("nop");
   }
 }
-
-struct process *current_proc;
-struct process *idle_proc;
 
 void yield_roundrobin(void) {
   struct process *next = idle_proc;

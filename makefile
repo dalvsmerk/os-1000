@@ -12,7 +12,7 @@ LLVM_PREFIX := $(BREW_PREFIX)/opt/llvm/bin
 OBJCOPY := $(LLVM_PREFIX)/llvm-objcopy
 
 KERSOURCE := kernel.c stdio.c string.c alloc.c shell.bin.o
-USRSOURCE := shell.c user.c stdio.c
+USRSOURCE := shell.c user.c stdio.c string.c
 
 help:
 	@echo "Makefile for OS in 1000 lines"
