@@ -7,6 +7,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include "user.h"
+#include "virtioblk.h"
 
 #define PROC_POOL_SIZE 8
 
@@ -299,6 +300,8 @@ struct process *create_process(uint32_t *img, size_t img_size) {
     uint32_t flags = PAGE_R | PAGE_W | PAGE_X;
     map_page(page_table, paddr, paddr, flags);
   }
+
+  map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W);
 
   // map user pages
   for (uint32_t off = 0; off < img_size; off += PAGE_SIZE) {
