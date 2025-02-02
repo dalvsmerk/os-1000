@@ -1,10 +1,12 @@
 #include "kernel.h"
 #include "alloc.h"
 #include "builtins.h"
+#include "sbi.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "user.h"
 
 #define PROC_POOL_SIZE 8
 
@@ -20,12 +22,44 @@ extern char __kernel_base[], __free_ram_end[];
 
 extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 
+void putchar(char ch) {
+  sbi_call(ch, 0, 0, 0, 0, 0, 0, 1);
+
+  // NOTE: May need to handle SBI error
+  // https://github.com/riscv-non-isa/riscv-sbi-doc/blob/master/src/binary-encoding.adoc#table_standard_sbi_errors
+
+  // From https://www.scs.stanford.edu/~zyedidia/docs/riscv/riscv-sbi.pdf
+  // > This SBI call returns 0 upon success or an implementation specific
+  // negative error code. So skipping error handling for now
+}
+
+void handle_syscall(struct trap_frame *frame) {
+  // syscall code
+  switch (frame->a3) {
+  case SYS_PUTCHAR:
+    putchar(frame->a0);
+    break;
+  default:
+    PANIC("unexpected syscall no=%d", frame->a3);
+  }
+}
+
 void handle_trap(struct trap_frame *frame) {
   uint32_t scause = READ_CSR(scause);
   uint32_t stval = READ_CSR(stval);
-  uint32_t sepc = READ_CSR(sepc);
+  uint32_t user_pc = READ_CSR(sepc);
 
-  PANIC("unexpected trap scause=%x, stval=%x, sepc=%x", scause, stval, sepc);
+  if (scause == SCAUSE_ECALL) {
+    // handle system call
+    handle_syscall(frame);
+    // and proceed with the next instruction
+    user_pc += 4;
+  } else {
+    PANIC("unexpected trap scause=%x, stval=%x, sepc=%x", scause, stval,
+          user_pc);
+  }
+
+  WRITE_CSR(sepc, user_pc);
 }
 
 __attribute__((naked)) __attribute__((aligned(4))) void trap_entry(void) {

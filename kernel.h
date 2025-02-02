@@ -71,3 +71,6 @@ struct trap_frame {
 
 // Enable hardware interrupts in U-mode
 #define SSTATUS_SPIE (1 << 5)
+
+// to handle syscall from user mode
+#define SCAUSE_ECALL 8
