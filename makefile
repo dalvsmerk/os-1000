@@ -14,6 +14,24 @@ OBJCOPY := $(LLVM_PREFIX)/llvm-objcopy
 KERSOURCE := kernel.c stdio.c string.c alloc.c shell.bin.o
 USRSOURCE := shell.c user.c stdio.c
 
+help:
+	@echo "Makefile for OS in 1000 lines"
+	@echo
+	@echo "Build"
+	@echo "    user        build user-mode application"
+	@echo "    kernel      build kernel"
+	@echo
+	@echo "Execute"
+	@echo "    run         run QEMU virtual machine based on kernel.elf binary"
+	@echo
+	@echo "Debugging"
+	@echo "    disas       show disassembly of a binary, example:"
+	@echo "                make disas bin=kernel.elf"
+	@echo "    addr2line   show physical address of kernel line of code, example:"
+	@echo "                make addr2line addr=0x800802b9"
+	@echo "    lsnames     list names of compiled objects of a binary, example:"
+	@echo "                make lsnames bin=shell.bin.o"
+
 user:
 	$(CC) $(CFLAGS) -Wl,-Tuser.ld -Wl,-Map=shell.map -o shell.elf $(USRSOURCE)
 	$(OBJCOPY) --set-section-flags .bss=alloc,contents -O binary shell.elf shell.bin
