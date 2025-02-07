@@ -3,8 +3,13 @@
 #include "stdint.h"
 #include "alloc.h"
 
+// See virtio specs
+// https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003
+
 #define SECTOR_SIZE 512
 #define VIRTQ_ENTRY_NUM 16
+#define VIRTIO_DEVICE_MAGIC 0x74726976
+#define VIRTIO_DEVICE_VERSION 1
 #define VIRTIO_DEVICE_BLK 2
 #define VIRTIO_BLK_PADDR 0x10001000
 

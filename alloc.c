@@ -15,7 +15,7 @@ void *balloc_pages(size_t n) {
   next_free_addr += n * PAGE_SIZE;
 
   if ((uint32_t)next_free_addr > (uint32_t)__free_ram_end) {
-    PANIC("out of memory");
+    panic("out of memory");
   }
 
   memset(ptr, 0, PAGE_SIZE);

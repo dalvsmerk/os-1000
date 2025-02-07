@@ -75,9 +75,9 @@ void handle_syscall(struct trap_frame *frame) {
     printf("process pid=%d exited\n", current_proc->pid);
     current_proc->state = PROC_EXITED;
     yield_roundrobin();
-    PANIC("unreachable");
+    panic("unreachable");
   default:
-    PANIC("unexpected syscall no=%d", frame->a3);
+    panic("unexpected syscall no=%d", frame->a3);
   }
 }
 
@@ -92,7 +92,7 @@ void handle_trap(struct trap_frame *frame) {
     // and proceed with the next instruction
     user_pc += 4;
   } else {
-    PANIC("unexpected trap scause=%x, stval=%x, sepc=%x", scause, stval,
+    panic("unexpected trap scause=%x, stval=%x, sepc=%x", scause, stval,
           user_pc);
   }
 
@@ -228,11 +228,11 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp,
 
 void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
   if (!is_aligned(vaddr, PAGE_SIZE)) {
-    PANIC("vaddr %x is not aligned to 4kb page size", vaddr);
+    panic("vaddr %x is not aligned to 4kb page size", vaddr);
   }
 
   if (!is_aligned(paddr, PAGE_SIZE)) {
-    PANIC("paddr %x is not aligned to 4kb page size", paddr);
+    panic("paddr %x is not aligned to 4kb page size", paddr);
   }
 
   uint32_t vpn1 = (vaddr >> 22) & 0x3FF;
@@ -272,7 +272,7 @@ struct process *create_process(uint32_t *img, size_t img_size) {
   }
 
   if (proc == NULL) {
-    PANIC("no available slots for new process");
+    panic("no available slots for new process");
   }
 
   uint32_t *sp = (uint32_t *)&proc->stack[sizeof(proc->stack)];
@@ -301,6 +301,7 @@ struct process *create_process(uint32_t *img, size_t img_size) {
     map_page(page_table, paddr, paddr, flags);
   }
 
+  // MMIO for virtio device
   map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W);
 
   // map user pages
@@ -380,7 +381,7 @@ void kernel_main(void) {
                  (size_t)_binary_shell_bin_size);
 
   yield_roundrobin();
-  PANIC("switched to idle process");
+  panic("switched to idle process");
 
   for (;;) {
     __asm__ __volatile__("wfi");
