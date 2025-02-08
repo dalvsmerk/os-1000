@@ -1,3 +1,5 @@
+#pragma once
+
 // Clang compiler specific builtins
 #define va_list __builtin_va_list
 #define va_start __builtin_va_start

@@ -1,5 +1,6 @@
 #include "alloc.h"
 #include "kernel.h"
+#include "panic.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "string.h"

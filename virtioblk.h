@@ -1,7 +1,8 @@
 #pragma once
 
-#include "stdint.h"
 #include "alloc.h"
+#include "stdbool.h"
+#include "stdint.h"
 
 // See virtio specs
 // https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-910003
@@ -69,7 +70,7 @@ struct virtq_used_ring {
 } __attribute__((packed));
 
 // virtqueue
-struct virtio_virtq {
+struct virtq {
   struct virtq_desc descs[VIRTQ_ENTRY_NUM];
   struct virtq_avail_ring avail_ring;
   struct virtq_used_ring used_ring __attribute__((aligned(PAGE_SIZE)));
@@ -80,25 +81,40 @@ struct virtio_virtq {
 
 // virtio-blk request
 struct virtio_blk_req {
+  // will be mapped to 0-descriptor, see read_write_disk(3)
   uint32_t type;
   uint32_t reserved;
   uint64_t sector;
-  uint8_t data[512];
+
+  // will be mapped to 1-descriptor
+  uint8_t data[SECTOR_SIZE];
+
+  // will be mapped to 2-descriptor
   uint8_t status;
 } __attribute__((packed));
 
-uint32_t virtio_reg_read32(unsigned offset) {
-  return *((volatile uint32_t *)(VIRTIO_BLK_PADDR + offset));
+uint32_t virtio_reg_read32(unsigned offset);
+
+uint64_t virtio_reg_read64(unsigned offset);
+
+void virtio_reg_write32(unsigned offset, uint32_t value);
+
+void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value);
+
+void virtio_blk_init(void);
+
+struct virtq *virtq_init(int);
+
+void virtq_kick(struct virtq *vq, int desc_index);
+
+bool virtq_busy(struct virtq *vq);
+
+void read_write_disk(void *buf, unsigned sector, int is_write);
+
+inline void read_disk(void *buf, unsigned sector) {
+  read_write_disk(buf, sector, 0);
 }
 
-uint64_t virtio_reg_read64(unsigned offset) {
-  return *((volatile uint64_t *)(VIRTIO_BLK_PADDR + offset));
-}
-
-void virtio_reg_write32(unsigned offset, uint32_t value) {
-  *((volatile uint32_t *)(VIRTIO_BLK_PADDR + offset)) = value;
-}
-
-void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
-  virtio_reg_write32(offset, virtio_reg_read32(offset) | value);
+inline void write_disk(void *buf, unsigned sector) {
+  read_write_disk(buf, sector, 1);
 }

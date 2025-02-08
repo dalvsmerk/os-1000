@@ -11,7 +11,7 @@ LLVM_PREFIX := $(BREW_PREFIX)/opt/llvm/bin
 
 OBJCOPY := $(LLVM_PREFIX)/llvm-objcopy
 
-KERSOURCE := kernel.c stdio.c string.c alloc.c shell.bin.o
+KERSOURCE := kernel.c stdio.c string.c alloc.c virtioblk.c
 USRSOURCE := shell.c user.c stdio.c string.c
 
 help:
@@ -20,6 +20,7 @@ help:
 	@echo "Build"
 	@echo "    user        build user-mode application"
 	@echo "    kernel      build kernel"
+	@echo "    clean       remove all compilation artifacts"
 	@echo
 	@echo "Execute"
 	@echo "    run         run QEMU virtual machine based on kernel.elf binary"
@@ -38,7 +39,10 @@ user:
 	$(OBJCOPY) -Ibinary -Oelf32-littleriscv shell.bin shell.bin.o
 
 kernel: shell.bin.o
-	$(CC) $(CFLAGS) -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf $(KERSOURCE)
+	$(CC) $(CFLAGS) -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf $(KERSOURCE) shell.bin.o
+
+clean:
+	rm *.map *.bin *.bin.o *.elf
 
 run:
 	$(QEMU) -machine virt -bios default -nographic -serial mon:stdio -no-reboot \
