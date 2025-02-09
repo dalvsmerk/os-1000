@@ -5,4 +5,4 @@
 // todo: replace panic with assert-specific message
 #define assert(cond, msg, ...)                                                 \
   if (!(cond))                                                                 \
-  panic(msg, ##__VA_ARGS__)
+  panic("assert error: " msg, ##__VA_ARGS__)

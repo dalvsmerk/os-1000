@@ -4,6 +4,7 @@
 #include "builtins.h"
 #include "stdint.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "string.h"
 
 struct virtq *blk_virtq;
@@ -27,7 +28,7 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
   virtio_reg_write32(offset, virtio_reg_read32(offset) | value);
 }
 
-struct virtq *virtq_init(int index) {
+struct virtq *virtq_init(unsigned index) {
   virtio_reg_write32(VIRTIO_REG_QUEUE_SEL, index);
 
   assert(virtio_reg_read32(VIRTIO_REG_QUEUE_PFN) == 0,
@@ -62,6 +63,7 @@ void virtio_blk_init(void) {
   virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, 0);
   virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_ACK);
   virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER);
+  // note: not supported by legacy interface
   virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
 
   assert(virtio_reg_read32(VIRTIO_REG_DEVICE_STATUS) & VIRTIO_STATUS_FEAT_OK,
@@ -75,7 +77,7 @@ void virtio_blk_init(void) {
   virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
 
   // todo: why + 0?
-  blk_capacity = virtio_reg_read32(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
+  blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
   printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
 
   blk_req_paddr =
@@ -87,6 +89,7 @@ void virtio_blk_init(void) {
 }
 
 void virtq_kick(struct virtq *vq, int desc_index) {
+  assert(vq != NULL, "vq must be a valid pointer");
   // write index of new request descriptor to ring buffer
   vq->avail_ring.ring[vq->avail_ring.index % VIRTQ_ENTRY_NUM] = desc_index;
   vq->avail_ring.index++;
@@ -97,7 +100,9 @@ void virtq_kick(struct virtq *vq, int desc_index) {
 }
 
 int virtq_busy(struct virtq *vq) {
+  assert(vq != NULL, "vq must be a valid pointer");
   return vq->last_used_index != *vq->used_index;
+  // return vq->last_used_index != vq->used_ring.index;
 }
 
 // NOTE: this does not support sending multiple requests for simplicity
@@ -136,13 +141,21 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
   vq->descs[2].len = sizeof(uint8_t);
   vq->descs[2].flags = VIRTQ_DESC_F_WRITE;
 
-  // notify device about new request that's in the head of descriptors (0 index)
+  // notify device about new request that's in the head of descriptors (0-index)
   virtq_kick(vq, 0);
 
-  // polling
-  // wait for request to be processed before allowing another request to be sent
-  while (virtq_busy(0))
+  __sync_synchronize();
+
+  printf("before last_used_index=%d    used_ring.index=%d\n",
+         vq->last_used_index, vq->used_ring.index);
+
+  // polling - wait for request to be processed before allowing another request
+  // to be sent while
+  while (virtq_busy(vq))
     ;
+
+  printf("after last_used_index=%d    used_ring.index=%d\n",
+         vq->last_used_index, vq->used_ring.index);
 
   if (blk_req->status != 0) {
     printf("virtio: failed to read/write sector=%d status=%d\n", sector,

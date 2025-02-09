@@ -23,7 +23,6 @@
 #define VIRTIO_REG_QUEUE_NUM 0x38
 #define VIRTIO_REG_QUEUE_ALIGN 0x3c
 #define VIRTIO_REG_QUEUE_PFN 0x40
-#define VIRTIO_REG_QUEUE_READY 0x44
 #define VIRTIO_REG_QUEUE_NOTIFY 0x50
 
 #define VIRTIO_REG_DEVICE_STATUS 0x70
@@ -74,7 +73,7 @@ struct virtq {
   struct virtq_desc descs[VIRTQ_ENTRY_NUM];
   struct virtq_avail_ring avail_ring;
   struct virtq_used_ring used_ring __attribute__((aligned(PAGE_SIZE)));
-  int queue_index;
+  unsigned queue_index;
   volatile uint16_t *used_index;
   uint16_t last_used_index;
 } __attribute__((packed));
@@ -103,7 +102,7 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value);
 
 void virtio_blk_init(void);
 
-struct virtq *virtq_init(int);
+struct virtq *virtq_init(unsigned);
 
 void virtq_kick(struct virtq *vq, int desc_index);
 
