@@ -49,6 +49,7 @@ run:
 		-d unimp,guest_errors,int,cpu_reset,strace -D qemu.log \
 		-drive id=drive0,file=lorem.txt,format=raw,if=none \
     -device virtio-blk-device,drive=drive0,bus=virtio-mmio-bus.0 \
+		-trace "file=qemu-trace.log,enable=virtio_*" \
 	  -kernel kernel.elf
 
 disas:

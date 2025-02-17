@@ -146,16 +146,10 @@ void read_write_disk(void *buf, unsigned sector, int is_write) {
 
   __sync_synchronize();
 
-  printf("before last_used_index=%d    used_ring.index=%d\n",
-         vq->last_used_index, vq->used_ring.index);
-
   // polling - wait for request to be processed before allowing another request
   // to be sent while
   while (virtq_busy(vq))
     ;
-
-  printf("after last_used_index=%d    used_ring.index=%d\n",
-         vq->last_used_index, vq->used_ring.index);
 
   if (blk_req->status != 0) {
     printf("virtio: failed to read/write sector=%d status=%d\n", sector,
