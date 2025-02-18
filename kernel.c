@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "alloc.h"
 #include "builtins.h"
+#include "fs.h"
 #include "panic.h"
 #include "sbi.h"
 #include "stdint.h"
@@ -375,17 +376,7 @@ void kernel_main(void) {
   printf("registered trap handler\n");
 
   virtio_blk_init();
-
-  char buf[SECTOR_SIZE];
-  read_disk(buf, 0);
-  printf("read from 0-sector: %s\n", buf);
-
-  strcpy(buf, "hello kernel!\n");
-  write_disk(buf, 1);
-
-  char buf2[SECTOR_SIZE];
-  read_disk(buf2, 1);
-  printf("read from 1-sector: %s\n", buf2);
+  fs_init();
 
   idle_proc = create_process((uint32_t *)NULL, 0);
   idle_proc->pid = -1;

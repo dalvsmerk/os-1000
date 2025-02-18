@@ -11,8 +11,11 @@ LLVM_PREFIX := $(BREW_PREFIX)/opt/llvm/bin
 
 OBJCOPY := $(LLVM_PREFIX)/llvm-objcopy
 
-KERSOURCE := kernel.c stdio.c string.c alloc.c virtioblk.c
+KERSOURCE := kernel.c stdio.c string.c number.c alloc.c virtioblk.c fs.c
 USRSOURCE := shell.c user.c stdio.c string.c
+
+all:
+	make user kernel
 
 help:
 	@echo "Makefile for OS in 1000 lines"
@@ -45,9 +48,10 @@ clean:
 	rm *.map *.bin *.bin.o *.elf
 
 run:
+	(cd disk && tar cf ../disk.tar --format=ustar *.txt)
 	$(QEMU) -machine virt -bios default -nographic -serial mon:stdio -no-reboot \
 		-d unimp,guest_errors,int,cpu_reset,strace -D qemu.log \
-		-drive id=drive0,file=lorem.txt,format=raw,if=none \
+		-drive id=drive0,file=disk.tar,format=raw,if=none \
     -device virtio-blk-device,drive=drive0,bus=virtio-mmio-bus.0 \
 		-trace "file=qemu-trace.log,enable=virtio_*" \
 	  -kernel kernel.elf
