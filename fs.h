@@ -29,6 +29,11 @@ struct file_header {
   char data[];
 } __attribute__((packed));
 
+#define TAR_MAGIC "ustar"
+#define TAR_VERSION "00"
+
+#define TAR_TYPE_FILE '0'
+
 struct file {
   bool in_use;
   char name[100];
@@ -37,3 +42,7 @@ struct file {
 };
 
 void fs_init(void);
+
+void fs_flush(void);
+
+struct file* fs_lookup(const char *filename);

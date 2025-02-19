@@ -62,7 +62,7 @@ void handle_syscall(struct trap_frame *frame) {
   case SYS_PUTCHAR:
     putchar(frame->a0);
     break;
-  case SYS_GETCHAR:
+  case SYS_GETCHAR: {
     while (1) {
       int ch = getchar();
       if (ch >= 0) {
@@ -73,11 +73,41 @@ void handle_syscall(struct trap_frame *frame) {
       yield_roundrobin();
     }
     break;
-  case SYS_EXIT:
+  }
+  case SYS_EXIT: {
     printf("process pid=%d exited\n", current_proc->pid);
     current_proc->state = PROC_EXITED;
     yield_roundrobin();
     panic("unreachable");
+  }
+  case SYS_READFILE:
+  case SYS_WRITEFILE: {
+    const char *filename = (const char *)frame->a0;
+    char *buf = (char *)frame->a1;
+    int len = frame->a2;
+
+    struct file *file = fs_lookup(filename);
+
+    if (file == NULL) {
+      frame->a0 = -1; // -1 unsuccessful exit code
+      break;
+    }
+
+    if (len > (int)sizeof(file->data)) {
+      len = file->size;
+    }
+
+    if (frame->a3 == SYS_WRITEFILE) {
+      memcpy(file->data, buf, len);
+      file->size = len;
+      fs_flush();
+    } else {
+      memcpy(buf, file->data, len);
+    }
+
+    frame->a0 = len; // > -1 successful exit code
+    break;
+  }
   default:
     panic("unexpected syscall no=%d", frame->a3);
   }
@@ -255,11 +285,12 @@ void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
 }
 
 void user_entry(void) {
-  __asm__ __volatile__("csrw sepc, %[sepc]\n"
-                       "csrw sstatus, %[sstatus]\n"
-                       "sret\n"
-                       :
-                       : [sepc] "r"(USER_BASE), [sstatus] "r"(SSTATUS_SPIE));
+  __asm__ __volatile__(
+      "csrw sepc, %[sepc]\n"
+      "csrw sstatus, %[sstatus]\n"
+      "sret\n"
+      :
+      : [sepc] "r"(USER_BASE), [sstatus] "r"(SSTATUS_SPIE | SSTATUS_SUM));
 }
 
 struct process *create_process(uint32_t *img, size_t img_size) {
@@ -373,7 +404,7 @@ void kernel_main(void) {
   memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
 
   WRITE_CSR(stvec, (uint32_t)trap_entry);
-  printf("registered trap handler\n");
+  printf("kernel: registered trap handler\n");
 
   virtio_blk_init();
   fs_init();
@@ -386,7 +417,7 @@ void kernel_main(void) {
                  (size_t)_binary_shell_bin_size);
 
   yield_roundrobin();
-  panic("switched to idle process");
+  panic("kernel: switched to idle process");
 
   for (;;) {
     __asm__ __volatile__("wfi");

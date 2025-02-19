@@ -62,5 +62,8 @@ struct trap_frame {
 // Enable hardware interrupts in U-mode
 #define SSTATUS_SPIE (1 << 5)
 
+// Enable SUM flag to access user-space memory from kernel
+#define SSTATUS_SUM (1 << 18)
+
 // to handle syscall from user mode
 #define SCAUSE_ECALL 8

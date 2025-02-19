@@ -78,7 +78,7 @@ void virtio_blk_init(void) {
 
   // todo: why + 0?
   blk_capacity = virtio_reg_read64(VIRTIO_REG_DEVICE_CONFIG + 0) * SECTOR_SIZE;
-  printf("virtio-blk: capacity is %d bytes\n", blk_capacity);
+  printf("virtio: virtio-blk capacity is %d bytes\n", blk_capacity);
 
   blk_req_paddr =
       (paddr_t)balloc_pages(align_up(sizeof(*blk_req), PAGE_SIZE) / PAGE_SIZE);
