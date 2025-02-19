@@ -13,8 +13,8 @@
 - [x] 9. Application
 - [x] 10. User mode
 - [x] 11. System calls
-- [ ] 12. Disk I/O
-- [ ] 13. File system
+- [x] 12. Disk I/O
+- [x] 13. File system
 
 ## 🔗 References
 - [Operating System in 1000 lines](https://operating-system-in-1000-lines.vercel.app/en/)
