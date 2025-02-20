@@ -63,22 +63,13 @@ void fs_flush(void) {
     strcpy(header->magic, TAR_MAGIC);
     strcpy(header->version, TAR_VERSION);
     header->type = TAR_TYPE_FILE;
-    // dec2oct(f->size, header->size, sizeof(header->size));
-    int filesz = f->size;
-    for (int i = sizeof(header->size); i > 0; i--) {
-      header->size[i - 1] = (filesz % 8) + '0';
-      filesz /= 8;
-    }
+    dec2oct(f->size, header->size, sizeof(header->size));
 
     int checksum = ' ' * sizeof(header->checksum);
     for (unsigned k = 0; k < sizeof(struct file_header); k++) {
       checksum += disk[off + k];
     }
-    // dec2oct(checksum, header->checksum, sizeof(header->checksum));
-    for (int i = 5; i >= 0; i--) {
-      header->checksum[i] = (checksum % 8) + '0';
-      checksum /= 8;
-    }
+    dec2oct(checksum, header->checksum, sizeof(header->checksum));
 
     memcpy(header->data, f->data, f->size);
 

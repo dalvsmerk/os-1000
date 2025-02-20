@@ -24,7 +24,9 @@ int oct2dec(char *oct, size_t len) {
  * @param len dst len
  */
 void dec2oct(int dec, char *oct, size_t len) {
-  for (size_t i = len; i > 0; i++) {
+  assert(oct != NULL, "attempting to access NULL pointer");
+
+  for (size_t i = len; i > 0; i--) {
     oct[i - 1] = to_ascii(dec % 8);
     dec /= 8;
   }
